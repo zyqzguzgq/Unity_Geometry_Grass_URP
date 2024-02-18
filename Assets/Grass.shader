@@ -46,6 +46,7 @@ Shader "Roystan/Grass"
 	float2 _WindFrequency;
 	float _WindStrengthFactor;
 
+	float3 _LightDirection;
 
 	// Simple noise function, sourced from http://answers.unity.com/answers/624136/view.html
 	// Extended discussion on this function can be found at the following link:
@@ -79,14 +80,17 @@ Shader "Roystan/Grass"
 	struct geometryOutput
 	{
 		float4 pos : SV_POSITION;
+		float3 posWS : TEXCOORD1;
 		float2 Bladeuv : TEXCOORD0;
+		//float4 shadowcoord : TEXCOORD1;
 	};
 	
 
-	geometryOutput geoVertex(float4 posNew, float2 uv)
+	geometryOutput geoVertex(float3 posNew, float2 uv)
 	{
 		geometryOutput o;
-		o.pos = posNew;
+		o.posWS = posNew;
+		o.pos = TransformWorldToHClip(o.posWS);
 		o.Bladeuv = uv;
 		return o;
 	}
@@ -110,28 +114,25 @@ Shader "Roystan/Grass"
 		float3 windVector = SAMPLE_TEXTURE2D_LOD(_WindDistortionMap, sampler__WindDistortionMap, Winduv,0)*2 -1;
 		float windStrength = dot(windVector,windVector);
 
-		//ת������
+		//Matrix
 		float3x3 facingRotationMatrix = AngleAxis3x3(rand(pos) * UNITY_TWO_PI, float3(0, 0, 1));
 		float3x3 bendRotationMatrix = AngleAxis3x3(rand(pos.zzx) * _BendRotationRandom * UNITY_PI * 0.5 , float3(-1, 0, 0));
 		float3x3 windRotationMatrix = AngleAxis3x3(windStrength * _WindStrengthFactor , float3(windVector.xz,0));
 		float3x3 transformMatrix = mul(mul(facingRotationMatrix , bendRotationMatrix),windRotationMatrix);
-		/*
-		o = geoVertex(TransformObjectToHClip(pos + mul(float3(width, 0, 0) , TBN)),float2(1,0));
-		triStream.Append(o);
-
-		o = geoVertex(TransformObjectToHClip(pos + mul(float3(-width, 0, 0) , TBN)),float2(0,0));
-		triStream.Append(o);
-
-		o = geoVertex(TransformObjectToHClip(pos + mul(mul(transformMatrix,float3(0, 0, height)) , TBN)),float2(0.5,1));
-		triStream.Append(o);*/
+		
 
 		float widthOffset = width/BLADE_SEGMENTS;
 		float heightOffset = height/BLADE_SEGMENTS;
 
-		o = geoVertex(TransformObjectToHClip(pos + mul(mul(facingRotationMatrix,float3(width, 0, 0)) , TBN)),float2(1,0));
+		float3 posWS;
+		
+		posWS = TransformObjectToWorld(pos + mul(mul(facingRotationMatrix,float3(width, 0, 0)) , TBN));
+		o = geoVertex(posWS,float2(1,0));
 		triStream.Append(o);
 
-		o = geoVertex(TransformObjectToHClip(pos + mul(mul(facingRotationMatrix,float3(-width, 0, 0)) , TBN)),float2(0,0));
+		posWS = TransformObjectToWorld(pos + mul(mul(facingRotationMatrix,float3(-width, 0, 0)) , TBN));
+		o = geoVertex(posWS,float2(0,0));
+		//o = geoVertex(TransformObjectToHClip(pos + mul(mul(facingRotationMatrix,float3(-width, 0, 0)) , TBN)),float2(0,0));
 		triStream.Append(o);
 
 		float Forward = rand(pos.yyz) * _BladeBendForward;
@@ -139,14 +140,20 @@ Shader "Roystan/Grass"
 		for(float i=1;i<BLADE_SEGMENTS;i++)
 		{
 			float ForwardP = pow(i ,  _BladeBendFactor)* Forward;
-			o = geoVertex(TransformObjectToHClip(pos + mul(mul(transformMatrix,float3(width - widthOffset * i, ForwardP, i * heightOffset)) , TBN)),float2(1 - i * 0.5/BLADE_SEGMENTS,i /BLADE_SEGMENTS));
+			posWS = TransformObjectToWorld(pos + mul(mul(transformMatrix,float3(width - widthOffset * i, ForwardP, i * heightOffset)) , TBN));
+			o = geoVertex(posWS,float2(1 - i * 0.5/BLADE_SEGMENTS,i /BLADE_SEGMENTS));
+			//o = geoVertex(TransformObjectToHClip(pos + mul(mul(transformMatrix,float3(width - widthOffset * i, ForwardP, i * heightOffset)) , TBN)),float2(1 - i * 0.5/BLADE_SEGMENTS,i /BLADE_SEGMENTS));
 			triStream.Append(o);
 
-			o = geoVertex(TransformObjectToHClip(pos + mul(mul(transformMatrix,float3(-width + widthOffset * i, ForwardP, i * heightOffset)) , TBN)),float2(i * 0.5/ BLADE_SEGMENTS,i /BLADE_SEGMENTS));
+			posWS = TransformObjectToWorld(pos + mul(mul(transformMatrix,float3(-width + widthOffset * i, ForwardP, i * heightOffset)) , TBN));
+			o = geoVertex(posWS,float2(i * 0.5/ BLADE_SEGMENTS,i /BLADE_SEGMENTS));
+			//o = geoVertex(TransformObjectToHClip(pos + mul(mul(transformMatrix,float3(-width + widthOffset * i, ForwardP, i * heightOffset)) , TBN)),float2(i * 0.5/ BLADE_SEGMENTS,i /BLADE_SEGMENTS));
 			triStream.Append(o);
 
 		}
-		o = geoVertex(TransformObjectToHClip(pos + mul(mul(transformMatrix,float3(0, pow(BLADE_SEGMENTS ,  _BladeBendFactor)* Forward, height)) , TBN)),float2(0.5,1));
+		posWS = TransformObjectToWorld(pos + mul(mul(transformMatrix,float3(0, pow(BLADE_SEGMENTS ,  _BladeBendFactor)* Forward, height)) , TBN));
+		o = geoVertex(posWS,float2(0.5,1));
+		//o = geoVertex(TransformObjectToHClip(pos + mul(mul(transformMatrix,float3(0, pow(BLADE_SEGMENTS ,  _BladeBendFactor)* Forward, height)) , TBN)),float2(0.5,1));
 		triStream.Append(o);
 	}
 
@@ -171,7 +178,9 @@ Shader "Roystan/Grass"
 			#pragma domain domain
 			#pragma target 4.6
 			
-            
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN      // URP 主光阴影、联机阴影、屏幕空间阴影
+			#pragma multi_compile_fragment _ _SHADOWS_SOFT      // URP 软阴影
+			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"            //从unity中取得我们的光照
 			
 
 			float4 _TopColor;
@@ -181,8 +190,10 @@ Shader "Roystan/Grass"
 
 			float4 frag (geometryOutput i , half facing : VFACE) : SV_Target
             {	
+				Light light = GetMainLight(TransformWorldToShadowCoord(i.posWS));
+				float4 lightCol = float4(light.color,1)*light.shadowAttenuation;
 				float4 FinalColor = lerp(_BottomColor , _TopColor , i.Bladeuv.y);
-				return FinalColor;
+				return FinalColor * lightCol;
             }
             ENDHLSL
         }
@@ -233,11 +244,11 @@ Shader "Roystan/Grass"
 
             // This is used during shadow map generation to differentiate between directional and punctual light shadows, as they use different formulas to apply Normal Bias
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
-
+			
+			
             // -------------------------------------
             // Includes
-            #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
-            //#include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
+            
 			float4 frag(geometryOutput i):SV_TARGET
 			{
 				return 0;
