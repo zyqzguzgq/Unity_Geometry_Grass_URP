@@ -110,7 +110,7 @@ Shader "Roystan/Grass"
 		float3 windVector = SAMPLE_TEXTURE2D_LOD(_WindDistortionMap, sampler__WindDistortionMap, Winduv,0)*2 -1;
 		float windStrength = dot(windVector,windVector);
 
-		//×ª»»¾ØÕó
+		//×ªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		float3x3 facingRotationMatrix = AngleAxis3x3(rand(pos) * UNITY_TWO_PI, float3(0, 0, 1));
 		float3x3 bendRotationMatrix = AngleAxis3x3(rand(pos.zzx) * _BendRotationRandom * UNITY_PI * 0.5 , float3(-1, 0, 0));
 		float3x3 windRotationMatrix = AngleAxis3x3(windStrength * _WindStrengthFactor , float3(windVector.xz,0));
@@ -216,8 +216,8 @@ Shader "Roystan/Grass"
 
             // -------------------------------------
             // Material Keywords
-            //#pragma shader_feature_local_fragment _ALPHATEST_ON
-            //#pragma shader_feature_local_fragment _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
+            #pragma shader_feature_local_fragment _ALPHATEST_ON
+            #pragma shader_feature_local_fragment _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
 
             //--------------------------------------
             // GPU Instancing
@@ -237,11 +237,10 @@ Shader "Roystan/Grass"
             // -------------------------------------
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
-
-			float4 frag(geometryOutput i) : SV_TARGET0
+            //#include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
+			float4 frag(geometryOutput i):SV_TARGET
 			{
-				SHADOW_CASTER_FRAGMENT(i)
+				return 0;
 			}
             ENDHLSL
         }
