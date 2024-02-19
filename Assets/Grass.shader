@@ -19,6 +19,9 @@ Shader "Roystan/Grass"
 		_WindDistortionMap("Wind Distortion Map", 2D) = "white" {}
 		_WindFrequency("Wind Frequency", Vector) = (0.05, 0.05, 0, 0)
 		_WindStrengthFactor("Wind Strength Factor",float) = 0.3
+		[Header(___Impact_of_object_movement__)]
+		_ImpactRadius("Impact Radius", Float) = 1
+		
 		
 
     }
@@ -41,6 +44,9 @@ Shader "Roystan/Grass"
 	float _BladeBendFactor;
 	float _BladeBendForward;
 	
+
+	float4 _PositionMoving;
+	float _ImpactRadius;
 
 	
 	TEXTURE2D (_WindDistortionMap);			SAMPLER(sampler__WindDistortionMap);
@@ -100,6 +106,14 @@ Shader "Roystan/Grass"
 		#endif
 		o.Bladeuv = uv;
 		return o;
+	}
+
+	void objectInteraction(inout float3 bladePosWS)
+	{
+		float3 interVec = bladePosWS - _PositionMoving.xyz;
+		bladePosWS = bladePosWS + normalize(interVec) *  step(length(interVec) , _ImpactRadius) ;
+		//need to correct
+
 	}
 
 
@@ -168,9 +182,10 @@ Shader "Roystan/Grass"
 
 			posWS1 = posWS;
 			uv1 = float2(1 - i * 0.5/BLADE_SEGMENTS,i /BLADE_SEGMENTS);
-			
+			objectInteraction(posWS1);
 			posWS2 = TransformObjectToWorld(pos + mul(mul(transformMatrix,float3(-width + widthOffset * i, ForwardP, i * heightOffset)) , TBN));
 			uv2 = float2(i * 0.5/ BLADE_SEGMENTS,i /BLADE_SEGMENTS);
+			objectInteraction(posWS2);
 			
 			
 
@@ -183,6 +198,7 @@ Shader "Roystan/Grass"
 		o = geoVertex(posWS2 , uv2 , normalWStri);
 		triStream.Append(o);
 
+		objectInteraction(posWS);
 		o = geoVertex(posWS , float2(0.5,1) , normalWStri);	
 		triStream.Append(o);
 	}
