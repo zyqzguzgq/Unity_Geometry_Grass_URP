@@ -26,6 +26,8 @@ Shader "Roystan/Grass"
 	HLSLINCLUDE
 	#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 	#include "Shaders/CustomTessellation.cginc"
+	#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+	#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 	
 	#define UNITY_TWO_PI 6.28
 	#define UNITY_PI 3.14
@@ -82,16 +84,20 @@ Shader "Roystan/Grass"
 		float4 pos : SV_POSITION;
 		float3 posWS : TEXCOORD1;
 		float2 Bladeuv : TEXCOORD0;
-		//float3 normalWS : TEXCOORD2;
-		//float4 shadowcoord : TEXCOORD1;
+		float3 normalWS : TEXCOORD2;
+		
 	};
 	
 
-	geometryOutput geoVertex(float3 posNew, float2 uv)
+	geometryOutput geoVertex(float3 posNew, float2 uv , float3 normalWStri)
 	{
 		geometryOutput o;
 		o.posWS = posNew;
+		o.normalWS = normalWStri;
 		o.pos = TransformWorldToHClip(o.posWS);
+		#if defined (UNITY_PASS_SHADOWCASTER)
+			o.pos = TransformWorldToHClip(ApplyShadowBias(o.posWS, o.normalWS, _LightDirection));
+		#endif
 		o.Bladeuv = uv;
 		return o;
 	}
@@ -101,6 +107,8 @@ Shader "Roystan/Grass"
 	void geo(triangle vertexOutput IN[3] : SV_POSITION, inout TriangleStream<geometryOutput> triStream)
 	{
 		geometryOutput o;
+		
+		
 		float4 pos = IN[0].vertexPos;
 		float3 normalOS = IN[0].normalOS;
 		float4 tangent = IN[0].tangent;
@@ -126,35 +134,56 @@ Shader "Roystan/Grass"
 		float heightOffset = height/BLADE_SEGMENTS;
 
 		float3 posWS;
+		float3 posWS1;
+		float3 posWS2;
+		float2 uv1;
+		float2 uv2;
 		
-		posWS = TransformObjectToWorld(pos + mul(mul(facingRotationMatrix,float3(width, 0, 0)) , TBN));
-		o = geoVertex(posWS,float2(1,0));
-		triStream.Append(o);
+		
 
-		posWS = TransformObjectToWorld(pos + mul(mul(facingRotationMatrix,float3(-width, 0, 0)) , TBN));
-		o = geoVertex(posWS,float2(0,0));
-		//o = geoVertex(TransformObjectToHClip(pos + mul(mul(facingRotationMatrix,float3(-width, 0, 0)) , TBN)),float2(0,0));
-		triStream.Append(o);
+
+		posWS1 = TransformObjectToWorld(pos + mul(mul(facingRotationMatrix,float3(width, 0, 0)) , TBN));
+		uv1 = float2(1,0);
+		
+		
+
+		posWS2 = TransformObjectToWorld(pos + mul(mul(facingRotationMatrix,float3(-width, 0, 0)) , TBN));
+		uv2 = float2(0,0);
+		
+
 
 		float Forward = rand(pos.yyz) * _BladeBendForward;
 
 		for(float i=1;i<BLADE_SEGMENTS;i++)
 		{
 			float ForwardP = pow(i ,  _BladeBendFactor)* Forward;
+
 			posWS = TransformObjectToWorld(pos + mul(mul(transformMatrix,float3(width - widthOffset * i, ForwardP, i * heightOffset)) , TBN));
-			o = geoVertex(posWS,float2(1 - i * 0.5/BLADE_SEGMENTS,i /BLADE_SEGMENTS));
-			//o = geoVertex(TransformObjectToHClip(pos + mul(mul(transformMatrix,float3(width - widthOffset * i, ForwardP, i * heightOffset)) , TBN)),float2(1 - i * 0.5/BLADE_SEGMENTS,i /BLADE_SEGMENTS));
+			//calculate every triangle nromal
+			float3 normalWStri = cross(normalize(posWS1 - posWS), normalize(posWS2 - posWS));
+			o = geoVertex(posWS1 , uv1 , normalWStri);
+			triStream.Append(o);
+			o = geoVertex(posWS2 , uv2 , normalWStri);
 			triStream.Append(o);
 
-			posWS = TransformObjectToWorld(pos + mul(mul(transformMatrix,float3(-width + widthOffset * i, ForwardP, i * heightOffset)) , TBN));
-			o = geoVertex(posWS,float2(i * 0.5/ BLADE_SEGMENTS,i /BLADE_SEGMENTS));
-			//o = geoVertex(TransformObjectToHClip(pos + mul(mul(transformMatrix,float3(-width + widthOffset * i, ForwardP, i * heightOffset)) , TBN)),float2(i * 0.5/ BLADE_SEGMENTS,i /BLADE_SEGMENTS));
-			triStream.Append(o);
+			posWS1 = posWS;
+			uv1 = float2(1 - i * 0.5/BLADE_SEGMENTS,i /BLADE_SEGMENTS);
+			
+			posWS2 = TransformObjectToWorld(pos + mul(mul(transformMatrix,float3(-width + widthOffset * i, ForwardP, i * heightOffset)) , TBN));
+			uv2 = float2(i * 0.5/ BLADE_SEGMENTS,i /BLADE_SEGMENTS);
+			
+			
 
 		}
+
 		posWS = TransformObjectToWorld(pos + mul(mul(transformMatrix,float3(0, pow(BLADE_SEGMENTS ,  _BladeBendFactor)* Forward, height)) , TBN));
-		o = geoVertex(posWS,float2(0.5,1));
-		//o = geoVertex(TransformObjectToHClip(pos + mul(mul(transformMatrix,float3(0, pow(BLADE_SEGMENTS ,  _BladeBendFactor)* Forward, height)) , TBN)),float2(0.5,1));
+		float3 normalWStri = cross(normalize(posWS1 - posWS), normalize(posWS2 - posWS));
+		o = geoVertex(posWS1 , uv1 , normalWStri);
+		triStream.Append(o);
+		o = geoVertex(posWS2 , uv2 , normalWStri);
+		triStream.Append(o);
+
+		o = geoVertex(posWS , float2(0.5,1) , normalWStri);	
 		triStream.Append(o);
 	}
 
@@ -170,15 +199,17 @@ Shader "Roystan/Grass"
 			{
 				"RenderType" = "Opaque"
 			}
-
+			
             HLSLPROGRAM
+			#define SHADOW_BIAS
             #pragma vertex vert
 			#pragma geometry geo
             #pragma fragment frag
 			#pragma hull hull
 			#pragma domain domain
 			#pragma target 4.6
-			
+
+
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN      // URP 主光阴影、联机阴影、屏幕空间阴影
 			#pragma multi_compile_fragment _ _SHADOWS_SOFT      // URP 软阴影
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"            //从unity中取得我们的光照
@@ -192,9 +223,20 @@ Shader "Roystan/Grass"
 			float4 frag (geometryOutput i , half facing : VFACE) : SV_Target
             {	
 				Light light = GetMainLight(TransformWorldToShadowCoord(i.posWS));
-				float4 lightCol = float4(light.color,1)*light.shadowAttenuation;
-				float4 FinalColor = lerp(_BottomColor , _TopColor , i.Bladeuv.y);
-				return FinalColor * lightCol;
+				float3 normal = facing > 0 ? i.normalWS : -i.normalWS;
+				normal = normalize(normal);
+				float4 lightCol = float4(light.color,1) * (light.shadowAttenuation+0.5);
+				float3 diffuse = (dot(normal , _LightDirection)*0.5 +0.5) * lightCol.xyz; 
+				//0.5*SampleSH(normal).rgb 简易环境光的写法
+				float4 FinalColor = float4(lerp(_BottomColor , _TopColor , i.Bladeuv.y).xyz * diffuse +0.1*SampleSH(normal).rgb ,1);
+				
+				
+				return FinalColor;
+				
+				
+				
+				
+
             }
             ENDHLSL
         }
@@ -215,7 +257,6 @@ Shader "Roystan/Grass"
             Cull[_Cull]
 
             HLSLPROGRAM
-            #pragma target 2.0
 
             // -------------------------------------
             // Shader Stages
@@ -230,6 +271,7 @@ Shader "Roystan/Grass"
             // Material Keywords
             #pragma shader_feature_local_fragment _ALPHATEST_ON
             #pragma shader_feature_local_fragment _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A
+			
 
             //--------------------------------------
             // GPU Instancing

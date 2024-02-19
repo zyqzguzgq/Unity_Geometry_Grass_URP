@@ -65,9 +65,9 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BendRotationRandom: 0
-    - _BladeBendFactor: 1.63
-    - _BladeBendForward: 0.08
+    - _BendRotationRandom: 0.123
+    - _BladeBendFactor: 1.11
+    - _BladeBendForward: 0.06
     - _BladeCurve: 2
     - _BladeForward: 0.38
     - _BladeHeight: 0.62
@@ -92,7 +92,7 @@ Material:
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _TessellationUniform: 7
+    - _TessellationUniform: 7.2
     - _TranslucentGain: 0.5
     - _UVSec: 0
     - _WindScale: 1
