@@ -82,6 +82,7 @@ Shader "Roystan/Grass"
 		float4 pos : SV_POSITION;
 		float3 posWS : TEXCOORD1;
 		float2 Bladeuv : TEXCOORD0;
+		//float3 normalWS : TEXCOORD2;
 		//float4 shadowcoord : TEXCOORD1;
 	};
 	
