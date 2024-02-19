@@ -225,18 +225,13 @@ Shader "Roystan/Grass"
 				Light light = GetMainLight(TransformWorldToShadowCoord(i.posWS));
 				float3 normal = facing > 0 ? i.normalWS : -i.normalWS;
 				normal = normalize(normal);
-				float4 lightCol = float4(light.color,1) * (light.shadowAttenuation+0.5);
-				float3 diffuse = (dot(normal , _LightDirection)*0.5 +0.5) * lightCol.xyz; 
+				float4 lightCol = float4(light.color,1) * (light.shadowAttenuation);
+				float3 diffuse = (lerp(0.7,1,dot(normal , _LightDirection))) * lightCol.xyz; 
 				//0.5*SampleSH(normal).rgb 简易环境光的写法
 				float4 FinalColor = float4(lerp(_BottomColor , _TopColor , i.Bladeuv.y).xyz * diffuse +0.1*SampleSH(normal).rgb ,1);
 				
-				
 				return FinalColor;
-				
-				
-				
-				
-
+	
             }
             ENDHLSL
         }

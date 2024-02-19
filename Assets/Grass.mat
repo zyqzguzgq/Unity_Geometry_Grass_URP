@@ -66,11 +66,11 @@ Material:
     m_Ints: []
     m_Floats:
     - _BendRotationRandom: 0.123
-    - _BladeBendFactor: 1.11
+    - _BladeBendFactor: 2.16
     - _BladeBendForward: 0.06
     - _BladeCurve: 2
     - _BladeForward: 0.38
-    - _BladeHeight: 0.62
+    - _BladeHeight: 0.77
     - _BladeHeightRandom: 0.3
     - _BladeRandomAmount: 0.5
     - _BladeSegments: 3
