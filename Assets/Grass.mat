@@ -83,7 +83,7 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _ImpactRadius: 1.77
+    - _ImpactRadius: 0.08
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
@@ -93,12 +93,12 @@ Material:
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _TessellationUniform: 6.6
+    - _TessellationUniform: 7
     - _TranslucentGain: 0.5
     - _UVSec: 0
     - _WindScale: 1
     - _WindStrength: 1
-    - _WindStrengthFactor: 0
+    - _WindStrengthFactor: 0.13
     - _ZWrite: 1
     m_Colors:
     - _BottomColor: {r: 0.061297283, g: 0.378, b: 0.07151349, a: 1}

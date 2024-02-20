@@ -108,10 +108,14 @@ Shader "Roystan/Grass"
 		return o;
 	}
 
-	void objectInteraction(inout float3 bladePosWS)
+	void objectInteraction(inout float3 bladePosWS , float level )
 	{
+		level = pow(level , 1.5);
 		float3 interVec = bladePosWS - _PositionMoving.xyz;
-		bladePosWS = bladePosWS + normalize(interVec) *  step(length(interVec) , _ImpactRadius) ;
+		float3 movingVec = normalize(float3(interVec.x , -0.2 , interVec.z));
+		
+		bladePosWS += level * movingVec *  _ImpactRadius * smoothstep(0.8,0.3,length(interVec)) ; 
+		
 		//need to correct
 
 	}
@@ -170,6 +174,7 @@ Shader "Roystan/Grass"
 
 		for(float i=1;i<BLADE_SEGMENTS;i++)
 		{
+			
 			float ForwardP = pow(i ,  _BladeBendFactor)* Forward;
 
 			posWS = TransformObjectToWorld(pos + mul(mul(transformMatrix,float3(width - widthOffset * i, ForwardP, i * heightOffset)) , TBN));
@@ -182,11 +187,11 @@ Shader "Roystan/Grass"
 
 			posWS1 = posWS;
 			uv1 = float2(1 - i * 0.5/BLADE_SEGMENTS,i /BLADE_SEGMENTS);
-			objectInteraction(posWS1);
+			objectInteraction(posWS1 , i);
+			
 			posWS2 = TransformObjectToWorld(pos + mul(mul(transformMatrix,float3(-width + widthOffset * i, ForwardP, i * heightOffset)) , TBN));
 			uv2 = float2(i * 0.5/ BLADE_SEGMENTS,i /BLADE_SEGMENTS);
-			objectInteraction(posWS2);
-			
+			objectInteraction(posWS2 , i);
 			
 
 		}
@@ -198,7 +203,7 @@ Shader "Roystan/Grass"
 		o = geoVertex(posWS2 , uv2 , normalWStri);
 		triStream.Append(o);
 
-		objectInteraction(posWS);
+		objectInteraction(posWS , BLADE_SEGMENTS);
 		o = geoVertex(posWS , float2(0.5,1) , normalWStri);	
 		triStream.Append(o);
 	}
