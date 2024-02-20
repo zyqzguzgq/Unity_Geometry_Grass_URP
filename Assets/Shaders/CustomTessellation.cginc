@@ -21,6 +21,7 @@ struct vertexInput
     float4 vertex : POSITION;
     float4 tangent : TANGENT;
     float4 normalOS : NORMAL;
+	float2 uv : TEXCOORD4;
 };
 
 struct vertexOutput
@@ -28,6 +29,7 @@ struct vertexOutput
     float4 vertexPos : SV_POSITION;
     float4 tangent : TANGENT;
     float4 normalOS : normal;
+	float2 uv : TEXCOORD4;
 };
 
 
@@ -50,6 +52,7 @@ vertexOutput tessVert(vertexInput v)
 	o.vertexPos = v.vertex;
 	o.normalOS = v.normalOS;
 	o.tangent = v.tangent;
+	o.uv = v.uv;
 	return o;
 }
 
@@ -88,6 +91,7 @@ vertexOutput domain(TessellationFactors factors, OutputPatch<vertexInput, 3> pat
 	MY_DOMAIN_PROGRAM_INTERPOLATE(vertex)
 	MY_DOMAIN_PROGRAM_INTERPOLATE(normalOS)
 	MY_DOMAIN_PROGRAM_INTERPOLATE(tangent)
+	MY_DOMAIN_PROGRAM_INTERPOLATE(uv)
 
 	return tessVert(v);
 }

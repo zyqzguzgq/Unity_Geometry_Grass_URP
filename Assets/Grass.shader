@@ -15,6 +15,10 @@ Shader "Roystan/Grass"
 		_BladeHeightRandom("Blade Height Random", Float) = 0.3
 		_BladeBendFactor("BladeBendFactor", float) = 0.3
 		_BladeBendForward("BladeBendForward", float) = 0.3
+
+		[Space(10)] 
+		[Toggle] _TowardMap ("_TowardMap ?", Float) = 0
+		_GrassTowardMap("Grass Toward Map", 2D) = "white" {}
 		[Header(__________Wind_________)]
 		_WindDistortionMap("Wind Distortion Map", 2D) = "white" {}
 		_WindFrequency("Wind Frequency", Vector) = (0.05, 0.05, 0, 0)
@@ -53,6 +57,10 @@ Shader "Roystan/Grass"
 	float4 _WindDistortionMap_ST;
 	float2 _WindFrequency;
 	float _WindStrengthFactor;
+
+	#pragma shader_feature _TOWARDMAP_ON
+	TEXTURE2D (_GrassTowardMap);			SAMPLER(sampler__GrassTowardMap);
+	float4 _GrassTowardMap_ST;
 
 	float3 _LightDirection;
 
@@ -130,6 +138,7 @@ Shader "Roystan/Grass"
 		float4 pos = IN[0].vertexPos;
 		float3 normalOS = IN[0].normalOS;
 		float4 tangent = IN[0].tangent;
+		float2 groundUV = IN[0].uv;
 
 		float3 binormal = cross(normalize(normalOS.xyz), normalize(tangent.xyz)) * tangent.w;
 		float3x3 TBN = float3x3(normalize(tangent.xyz) , binormal , normalize(normalOS.xyz));
@@ -142,7 +151,18 @@ Shader "Roystan/Grass"
 		float windStrength = dot(windVector,windVector);
 
 		//Matrix
-		float3x3 facingRotationMatrix = AngleAxis3x3(rand(pos) * UNITY_TWO_PI, float3(0, 0, 1));
+		#if _TOWARDMAP_ON
+			groundUV = groundUV * _GrassTowardMap_ST.xy + _GrassTowardMap_ST.zw;
+			float2 GrassTowardVector = SAMPLE_TEXTURE2D_LOD(_GrassTowardMap, sampler__GrassTowardMap, groundUV,0)*2 -1;
+			float3 ForwardVector = normalize(float3(GrassTowardVector.x , GrassTowardVector.y ,0));
+			float3 UpVector = float3(0,0,1);
+			float3 rightVector = normalize(cross(UpVector , ForwardVector));
+			float3x3 facingRotationMatrix = float3x3(rightVector, ForwardVector , UpVector);
+			
+			
+		#else 
+			float3x3 facingRotationMatrix = AngleAxis3x3(rand(pos) * UNITY_TWO_PI, float3(0, 0, 1));
+		#endif
 		float3x3 bendRotationMatrix = AngleAxis3x3(rand(pos.zzx) * _BendRotationRandom * UNITY_PI * 0.5 , float3(-1, 0, 0));
 		float3x3 windRotationMatrix = AngleAxis3x3(windStrength * _WindStrengthFactor , float3(windVector.xz,0));
 		float3x3 transformMatrix = mul(mul(facingRotationMatrix , bendRotationMatrix),windRotationMatrix);
@@ -151,6 +171,7 @@ Shader "Roystan/Grass"
 		float widthOffset = width/BLADE_SEGMENTS;
 		float heightOffset = height/BLADE_SEGMENTS;
 
+		//for blade normal
 		float3 posWS;
 		float3 posWS1;
 		float3 posWS2;
