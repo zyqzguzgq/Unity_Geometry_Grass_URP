@@ -39,7 +39,7 @@ Shader "Roystan/Grass"
 	#define UNITY_TWO_PI 6.28
 	#define UNITY_PI 3.14
 	#define BLADE_SEGMENTS 3
-
+	CBUFFER_START(UnityPerMaterial)
 	float _BendRotationRandom;
 	float _BladeHeight;
 	float _BladeHeightRandom;	
@@ -63,7 +63,7 @@ Shader "Roystan/Grass"
 	float4 _GrassTowardMap_ST;
 
 	float3 _LightDirection;
-
+	CBUFFER_END
 	// Simple noise function, sourced from http://answers.unity.com/answers/624136/view.html
 	// Extended discussion on this function can be found at the following link:
 	// https://forum.unity.com/threads/am-i-over-complicating-this-random-function.454887/#post-2949326
