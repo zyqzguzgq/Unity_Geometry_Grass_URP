@@ -32,7 +32,7 @@ Shader "Roystan/Grass"
 
 	HLSLINCLUDE
 	#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-	#include "Shaders/CustomTessellation.cginc"
+	#include "../Shaders/CustomTessellation.cginc"
 	#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 	#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 	
