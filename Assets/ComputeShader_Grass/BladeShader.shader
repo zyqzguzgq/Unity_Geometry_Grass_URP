@@ -48,11 +48,11 @@ Shader "Unlit/BladeShader"
                 float4 wpos = mul(_ObjectToWorld, float4(pos , 1.0f)) + float4(BladePosX ,0,BladePosZ,0);
                 o.positionCS = mul(UNITY_MATRIX_VP, wpos);
                 o.uv = _UV[id + _BaseVertexIndex];
-                o.col = float4( 1.f, 0.f, 0.0f, 0.0f);
+                //o.col = float4( 1.f, 0.f, 0.0f, 0.0f);
 
 
-                /*o.positionCS = TransformObjectToHClip(_BladeDataBuffer[id].pos);
-                o.col = _BladeDataBuffer[id].color;*/
+                //o.positionCS = TransformObjectToHClip(_BladeDataBuffer[id].pos);
+                o.col = _BladeDataBuffer[id].color;
 
                 return o;
             }
@@ -60,7 +60,7 @@ Shader "Unlit/BladeShader"
             float4 frag(v2f i) : SV_Target
             {
                 float4 finalColor = lerp(float4(0,1,0,1),float4(0,0,1,1),i.uv.y);
-                return finalColor;
+                return i.col;
             }
             ENDHLSL
         }

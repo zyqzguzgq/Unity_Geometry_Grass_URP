@@ -1,13 +1,19 @@
 #pragma kernel UpdateBlade
 
+int pointNum;
+
 struct BladeData {
 	float3 pos;
 	float4 color;
 };
 
+
 RWStructuredBuffer<BladeData> BladeBuffer;
+RWStructuredBuffer<float3> BladeOutPosBuffer;
+RWStructuredBuffer<float3> BladeInPosBuffer;
 
 float Time;
+
 
 [numthreads(10, 10, 10)]
 void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex)
@@ -17,7 +23,8 @@ void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex)
 	float x = sin(index);
 	float y = sin(index * 1.2f);
 	float3 forward = float3(x, y, -sqrt(1 - x * x - y * y));
-	BladeBuffer[pindex].color = float4(forward.x, forward.y, cos(index) * 0.5f + 0.5, 1);
+	//BladeBuffer[pindex].color = float4(forward.x, forward.y, cos(index) * 0.5f + 0.5, 1);
+	BladeBuffer[pindex].color = float4(BladeInPosBuffer[pointNum-1],1);
 	if (Time > gid.x)
 		BladeBuffer[pindex].pos += forward * 0.005f;
 }

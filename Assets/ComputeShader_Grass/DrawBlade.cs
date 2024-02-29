@@ -15,24 +15,45 @@ public class DrawBlade : MonoBehaviour
     GraphicsBuffer meshPositions;
     GraphicsBuffer meshUV;
     ComputeBuffer mBladeDataBuffer;
+    ComputeBuffer mBladeOutPosBuffer;
+    ComputeBuffer mBladeInPosBuffer;
     int kernelId;
 
-    struct BladeData 
-    {
-        public Vector3 pos;
-        public Color color;
-    }
+    int pointNum;
+
+public struct BladeData 
+{
+    public Vector3 pos;
+    public Color color;
+
+}
     
 
     
 
     void Start() {
         //structÖÐÒ»¹²7¸öfloat£¬size=28
+        int pointNum = mesh.vertices.Length;
+        this.pointNum = pointNum;
         int mBladeCount = (int)(fieldWidth * fieldWidth / interval / interval);
         mBladeCount = 10000;
-        mBladeDataBuffer = new ComputeBuffer(mBladeCount, 28);
+        
+        
+        mBladeDataBuffer = new ComputeBuffer(mBladeCount,4*(3+4));
+        
         BladeData[] BladeDatas = new BladeData[mBladeCount];
+
+        mBladeOutPosBuffer = new ComputeBuffer(mBladeCount *pointNum,   3 *4);
+
+        Vector3[] Pos = new Vector3[mBladeCount * pointNum];
+
+        mBladeInPosBuffer = new ComputeBuffer(pointNum ,  3 *4);
+
+        
+
         mBladeDataBuffer.SetData(BladeDatas);
+        mBladeOutPosBuffer.SetData(Pos);
+        mBladeInPosBuffer.SetData(mesh.vertices);
 
         kernelId = computeShader.FindKernel("UpdateBlade");
 
@@ -51,9 +72,14 @@ public class DrawBlade : MonoBehaviour
         mBladeCount = 10000;
 
         computeShader.SetBuffer(kernelId, "BladeBuffer", mBladeDataBuffer);
+        computeShader.SetBuffer(kernelId, "BladeOutPosBuffer", mBladeOutPosBuffer);
+        computeShader.SetBuffer(kernelId, "BladeInPosBuffer" , mBladeInPosBuffer);
+        computeShader.SetInt("pointNum",this.pointNum);
         computeShader.SetFloat("Time", Time.time);
-        computeShader.Dispatch(kernelId, mBladeCount / 1000, 1, 1);
-        material.SetBuffer("_BladeDataBuffer", mBladeDataBuffer);
+        computeShader.Dispatch(kernelId, mBladeCount /1000, 1, 1);
+
+
+        
 
 
 
@@ -62,6 +88,7 @@ public class DrawBlade : MonoBehaviour
         rp.worldBounds = new Bounds(Vector3.zero, 10000*Vector3.one); // use tighter bounds
         rp.matProps = new MaterialPropertyBlock();
         rp.matProps.SetBuffer("_Positions", meshPositions);
+        rp.matProps.SetBuffer("_BladeDataBuffer", mBladeDataBuffer);
         rp.matProps.SetInt("_BaseVertexIndex", (int)mesh.GetBaseVertex(0));
         rp.matProps.SetMatrix("_ObjectToWorld", Matrix4x4.TRS(new Vector3(-4.5f, 0, 0), Quaternion.identity, new Vector3(100f, 100f, 100f)));
         rp.matProps.SetFloat("_NumInstances", 10.0f);
@@ -76,6 +103,11 @@ public class DrawBlade : MonoBehaviour
     void OnDestroy() {
         mBladeDataBuffer.Release();
         mBladeDataBuffer.Dispose();
+        mBladeOutPosBuffer.Release();
+        mBladeOutPosBuffer.Dispose();
+        mBladeInPosBuffer.Release();
+        mBladeInPosBuffer.Dispose();
+
 
         meshTriangles?.Dispose();
         meshTriangles = null;
