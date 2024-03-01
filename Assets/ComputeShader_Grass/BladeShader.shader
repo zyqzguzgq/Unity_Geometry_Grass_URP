@@ -30,6 +30,8 @@ Shader "Unlit/BladeShader"
 
             StructuredBuffer<BladeData> _BladeDataBuffer;
 
+            StructuredBuffer<float3> _OutPosBuffer;
+
             StructuredBuffer<float3> _Positions;
 
             StructuredBuffer<float2> _UV;
@@ -43,6 +45,7 @@ Shader "Unlit/BladeShader"
             {
                 v2f o;
                 float3 pos = _Positions[id + _BaseVertexIndex];
+                //pos = _OutPosBuffer[id + _BaseVertexIndex];
                 float BladePosX = instanceID % 100 * _Interval;
                 float BladePosZ = instanceID / 100 * _Interval;
                 float4 wpos = mul(_ObjectToWorld, float4(pos , 1.0f)) + float4(BladePosX ,0,BladePosZ,0);
@@ -53,6 +56,7 @@ Shader "Unlit/BladeShader"
 
                 //o.positionCS = TransformObjectToHClip(_BladeDataBuffer[id].pos);
                 o.col = _BladeDataBuffer[id].color;
+                o.col = float4(_OutPosBuffer[id]*10 , 1);
 
                 return o;
             }
