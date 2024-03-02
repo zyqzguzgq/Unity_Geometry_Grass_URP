@@ -1,46 +1,77 @@
 #pragma kernel UpdateBlade
+#define UNITY_TWO_PI 6.28
+#define UNITY_PI 3.14
 
 int pointNum;
+float _Interval;
 
 struct BladeData {
 	float3 pos;
 	float4 color;
 };
 
+float _BladeWidth;
+float _BladeHeight;
+float _BendRotationRandom;
 
+
+//声明buffer
 RWStructuredBuffer<BladeData> BladeBuffer;
 RWStructuredBuffer<float3> BladeOutPosBuffer;
 RWStructuredBuffer<float3> BladeInPosBuffer;
 
-float Time;
+float4x4 _ObjectToWorld;
 
-/*
-[numthreads(10, 10, 10)]
-void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex)
+
+
+float3x3 AngleAxis3x3(float angle, float3 axis)
 {
-	int pindex = gid.x * 1000 + index;
+	float c, s;
+	sincos(angle, s, c);
 
-	float x = sin(index);
-	float y = sin(index * 1.2f);
-	float3 forward = float3(x, y, -sqrt(1 - x * x - y * y));
-	//BladeBuffer[pindex].color = float4(forward.x, forward.y, cos(index) * 0.5f + 0.5, 1);
-	BladeBuffer[pindex].color = float4(BladeInPosBuffer[pointNum-1],1);
-	if (Time > gid.x)
-		BladeBuffer[pindex].pos += forward * 0.005f;
+	float t = 1 - c;
+	float x = axis.x;
+	float y = axis.y;
+	float z = axis.z;
+
+	return float3x3(
+		t * x * x + c, t * x * y - s * z, t * x * z + s * y,
+		t * x * y + s * z, t * y * y + c, t * y * z - s * x,
+		t * x * z - s * y, t * y * z + s * x, t * z * z + c
+		);
 }
-*/
 
-[numthreads(64, 9, 1)]
+float rand(float3 co)
+{
+	return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+}
+
+
+
+
+
+
+[numthreads(64, 1, 1)]
 void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex , uint3 threadID : SV_GroupThreadID)
 {
-	int pindex = gid.x * 64 * 9 + index;
+	float3x3 scaleMatrix = float3x3(_BladeWidth,0,1,
+									0,_BladeHeight,0,
+									0,0,1);
+	int pindex = gid.x * 64  + index;
+	float BladePosX = pindex % 100 * _Interval;
+    float BladePosZ = pindex / 100 * _Interval;
+	float3 BladePosOffset = float3(BladePosX,0,BladePosZ);
+	float3x3 facingRotationMatrix = AngleAxis3x3(rand(BladePosOffset) * UNITY_TWO_PI, float3(0, 1, 0));
+	float3x3 bendRotationMatrix = AngleAxis3x3(rand(BladePosOffset.zzx) * _BendRotationRandom * UNITY_PI * 0.5 , float3(-1, 0, 0));
+	float3x3 transformMatrix = mul(facingRotationMatrix,mul(bendRotationMatrix , scaleMatrix));
 
-	float x = sin(index);
-	float y = sin(index * 1.2f);
-	float3 forward = float3(x, y, -sqrt(1 - x * x - y * y));
-	//BladeBuffer[pindex].color = float4(forward.x, forward.y, cos(index) * 0.5f + 0.5, 1);
-	BladeBuffer[pindex].color = float4(BladeInPosBuffer[pointNum-1],1);
-	BladeOutPosBuffer[pindex] = BladeInPosBuffer[threadID.y];
-	if (Time > gid.x)
-		BladeBuffer[pindex].pos += forward * 0.005f;
+
+	for(int i =0; i<pointNum;i++)
+	{
+		int index = pindex * pointNum + i;
+		float3 positionOS = mul(transformMatrix,BladeInPosBuffer[i]);
+		float3 positionWS = mul(_ObjectToWorld , float4(positionOS,1)).xyz + BladePosOffset;
+		BladeOutPosBuffer[index] = positionWS;
+	}
+
 }

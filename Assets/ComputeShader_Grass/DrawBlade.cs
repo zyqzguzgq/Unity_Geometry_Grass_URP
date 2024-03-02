@@ -8,7 +8,16 @@ public class DrawBlade : MonoBehaviour
     public Material material;
     public Mesh mesh;
     public float fieldWidth = 100;
-    public float interval = 0.5f;
+    public int mBladeCount = 10000;
+    [Range(0,0.2f)]
+    public float interval = 0.2f;
+    [Range(0,1)]
+    public float BladeWidth;
+    [Range(0,10)]
+    public float BladeHeight;
+    
+    [Range(0,1)]
+    public float BendRotationRandom;
 
     
     GraphicsBuffer meshTriangles;
@@ -20,7 +29,7 @@ public class DrawBlade : MonoBehaviour
     ComputeBuffer mBladeInPosBuffer;
     int kernelId;
 
-    int pointNum;
+    private int pointNum;
 
 public struct BladeData 
 {
@@ -36,11 +45,11 @@ public struct BladeData
         //structÖÐÒ»¹²7¸öfloat£¬size=28
         int pointNum = mesh.vertices.Length;
         this.pointNum = pointNum;
-        int mBladeCount = (int)(fieldWidth * fieldWidth / interval / interval);
-        mBladeCount = 10000;
+
+        this.mBladeCount = 10000;
         
         
-        mBladeDataBuffer = new ComputeBuffer(mBladeCount,4*(3+4));
+        mBladeDataBuffer = new ComputeBuffer(this.mBladeCount,4*(3+4));
         
         BladeData[] BladeDatas = new BladeData[mBladeCount];
 
@@ -69,21 +78,11 @@ public struct BladeData
     }
 
     void Update() {
-        int mBladeCount = (int)(fieldWidth * fieldWidth / interval / interval);
-        mBladeCount = 10000;
+       
+        this.mBladeCount = 10000;
 
-        computeShader.SetBuffer(kernelId, "BladeBuffer", mBladeDataBuffer);
-        computeShader.SetBuffer(kernelId, "BladeOutPosBuffer", mBladeOutPosBuffer);
-        computeShader.SetBuffer(kernelId, "BladeInPosBuffer" , mBladeInPosBuffer);
-        computeShader.SetInt("pointNum",this.pointNum);
-        computeShader.SetFloat("Time", Time.time);
-        computeShader.Dispatch(kernelId, mBladeCount*9 /576, 1, 1);
-
-
+        ComputeShaderSetting(ref computeShader);
         
-
-
-
 
         RenderParams rp = new RenderParams(material);
         rp.worldBounds = new Bounds(Vector3.zero, 10000*Vector3.one); // use tighter bounds
@@ -93,7 +92,9 @@ public struct BladeData
         rp.matProps.SetBuffer("_OutPosBuffer" , mBladeOutPosBuffer);
         rp.matProps.SetInt("_BaseVertexIndex", (int)mesh.GetBaseVertex(0));
         rp.matProps.SetMatrix("_ObjectToWorld", Matrix4x4.TRS(new Vector3(-4.5f, 0, 0), Quaternion.identity, new Vector3(100f, 100f, 100f)));
+        
         rp.matProps.SetFloat("_NumInstances", 10.0f);
+        rp.matProps.SetInt("_PointNum" , this.pointNum);
         rp.matProps.SetFloat("_Interval" , interval);
         rp.matProps.SetBuffer("_UV" , meshUV);
 
@@ -117,5 +118,19 @@ public struct BladeData
         meshPositions = null;
         meshUV?.Dispose();
         meshUV = null;
+    }
+
+    void ComputeShaderSetting(ref ComputeShader computeShader)
+    {
+        computeShader.SetBuffer(kernelId, "BladeBuffer", mBladeDataBuffer);
+        computeShader.SetBuffer(kernelId, "BladeOutPosBuffer", mBladeOutPosBuffer);
+        computeShader.SetBuffer(kernelId, "BladeInPosBuffer" , mBladeInPosBuffer);
+        computeShader.SetInt("pointNum",this.pointNum);
+        computeShader.SetFloat("_BladeWidth" , BladeWidth);
+        computeShader.SetFloat("_BladeHeight" , BladeHeight);
+        computeShader.SetFloat("_Interval" , this.interval);
+        computeShader.SetFloat("_BendRotationRandom" , BendRotationRandom);
+        computeShader.SetMatrix("_ObjectToWorld" , Matrix4x4.TRS(new Vector3(-4.5f, 0, 0), Quaternion.identity, new Vector3(100f , 100f , 100f)));
+        computeShader.Dispatch(kernelId, mBladeCount /64, 1, 1);
     }
 }
