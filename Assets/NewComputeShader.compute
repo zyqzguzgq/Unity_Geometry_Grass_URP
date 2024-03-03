@@ -13,6 +13,9 @@ struct BladeData {
 float _BladeWidth;
 float _BladeHeight;
 float _BendRotationRandom;
+float _BendDownFactor;
+float _Curve ;
+float _BendStrength ;
 
 
 //声明buffer
@@ -61,6 +64,12 @@ void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex , uint3 thre
 	float BladePosX = pindex % 100 * _Interval;
     float BladePosZ = pindex / 100 * _Interval;
 	float3 BladePosOffset = float3(BladePosX,0,BladePosZ);
+
+
+
+	float3 BendVector = normalize(float3(0 , -_BendDownFactor , 1));
+
+
 	float3x3 facingRotationMatrix = AngleAxis3x3(rand(BladePosOffset) * UNITY_TWO_PI, float3(0, 1, 0));
 	float3x3 bendRotationMatrix = AngleAxis3x3(rand(BladePosOffset.zzx) * _BendRotationRandom * UNITY_PI * 0.5 , float3(-1, 0, 0));
 	float3x3 transformMatrix = mul(facingRotationMatrix,mul(bendRotationMatrix , scaleMatrix));
@@ -69,7 +78,8 @@ void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex , uint3 thre
 	for(int i =0; i<pointNum;i++)
 	{
 		int index = pindex * pointNum + i;
-		float3 positionOS = mul(transformMatrix,BladeInPosBuffer[i]);
+		float3 posTemp = BladeInPosBuffer[i] + pow(BladeInPosBuffer[i].y , _Curve) * _BendStrength * BendVector;
+		float3 positionOS = mul(transformMatrix,posTemp);
 		float3 positionWS = mul(_ObjectToWorld , float4(positionOS,1)).xyz + BladePosOffset;
 		BladeOutPosBuffer[index] = positionWS;
 	}

@@ -40,6 +40,8 @@ Shader "Unlit/BladeShader"
             uniform float _NumInstances;
             uniform int _PointNum;
             uniform float _Interval;
+            uniform float4 _BottomColor;
+            uniform float4 _TopColor;
 
             v2f vert(uint id : SV_VertexID , uint instanceID : SV_InstanceID)
             {
@@ -61,7 +63,7 @@ Shader "Unlit/BladeShader"
 
             float4 frag(v2f i) : SV_Target
             {
-                float4 finalColor = lerp(float4(0,1,0,1),float4(0,0,1,1),i.uv.y);
+                float4 finalColor = lerp(_BottomColor,_TopColor,i.uv.y);
                 return finalColor;
             }
             ENDHLSL

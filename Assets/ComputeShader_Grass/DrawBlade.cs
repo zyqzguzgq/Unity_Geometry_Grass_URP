@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class DrawBlade : MonoBehaviour
@@ -11,14 +12,27 @@ public class DrawBlade : MonoBehaviour
     public int mBladeCount = 10000;
     [Range(0,0.2f)]
     public float interval = 0.2f;
-    [Range(0,1)]
-    public float BladeWidth;
-    [Range(0,10)]
-    public float BladeHeight;
-    
-    [Range(0,1)]
-    public float BendRotationRandom;
+    [System.Serializable]
+    public struct BladeDatas
+    {
+        [Range(0,1)]
+        public float BladeWidth;
+        [Range(0,10)]
+        public float BladeHeight;
+        
+        [Range(0,1)]
+        public float BendRotationRandom;
+        
+        public float BendDownFactor;
+        [Range(1f,1.5f)]
+        public float Curve ;
+        public float BendStrength ;
+        public Color BottomColor;
+        public Color TopColor;
+    }
 
+    public BladeDatas bladeData;
+    
     
     GraphicsBuffer meshTriangles;
     GraphicsBuffer meshPositions;
@@ -87,16 +101,9 @@ public struct BladeData
         RenderParams rp = new RenderParams(material);
         rp.worldBounds = new Bounds(Vector3.zero, 10000*Vector3.one); // use tighter bounds
         rp.matProps = new MaterialPropertyBlock();
-        rp.matProps.SetBuffer("_Positions", meshPositions);
-        rp.matProps.SetBuffer("_BladeDataBuffer", mBladeDataBuffer);
-        rp.matProps.SetBuffer("_OutPosBuffer" , mBladeOutPosBuffer);
-        rp.matProps.SetInt("_BaseVertexIndex", (int)mesh.GetBaseVertex(0));
-        rp.matProps.SetMatrix("_ObjectToWorld", Matrix4x4.TRS(new Vector3(-4.5f, 0, 0), Quaternion.identity, new Vector3(100f, 100f, 100f)));
+
+        GraphicsShaderSetting(ref rp);
         
-        rp.matProps.SetFloat("_NumInstances", 10.0f);
-        rp.matProps.SetInt("_PointNum" , this.pointNum);
-        rp.matProps.SetFloat("_Interval" , interval);
-        rp.matProps.SetBuffer("_UV" , meshUV);
 
         Graphics.RenderPrimitivesIndexed(rp, MeshTopology.Triangles, meshTriangles, meshTriangles.count, (int)mesh.GetIndexStart(0), mBladeCount);
     }
@@ -126,11 +133,30 @@ public struct BladeData
         computeShader.SetBuffer(kernelId, "BladeOutPosBuffer", mBladeOutPosBuffer);
         computeShader.SetBuffer(kernelId, "BladeInPosBuffer" , mBladeInPosBuffer);
         computeShader.SetInt("pointNum",this.pointNum);
-        computeShader.SetFloat("_BladeWidth" , BladeWidth);
-        computeShader.SetFloat("_BladeHeight" , BladeHeight);
+        computeShader.SetFloat("_BladeWidth" , bladeData.BladeWidth);
+        computeShader.SetFloat("_BladeHeight" , bladeData.BladeHeight);
         computeShader.SetFloat("_Interval" , this.interval);
-        computeShader.SetFloat("_BendRotationRandom" , BendRotationRandom);
+        computeShader.SetFloat("_BendDownFactor" , bladeData.BendDownFactor);
+        computeShader.SetFloat("_Curve" , bladeData.Curve);
+        computeShader.SetFloat("_BendStrength" , bladeData.BendStrength);
+        computeShader.SetFloat("_BendRotationRandom" , bladeData.BendRotationRandom);
         computeShader.SetMatrix("_ObjectToWorld" , Matrix4x4.TRS(new Vector3(-4.5f, 0, 0), Quaternion.identity, new Vector3(100f , 100f , 100f)));
         computeShader.Dispatch(kernelId, mBladeCount /64, 1, 1);
+    }
+
+    void GraphicsShaderSetting(ref RenderParams rp)
+    {
+        rp.matProps.SetBuffer("_Positions", meshPositions);
+        rp.matProps.SetBuffer("_BladeDataBuffer", mBladeDataBuffer);
+        rp.matProps.SetBuffer("_OutPosBuffer" , mBladeOutPosBuffer);
+        rp.matProps.SetInt("_BaseVertexIndex", (int)mesh.GetBaseVertex(0));
+        rp.matProps.SetMatrix("_ObjectToWorld", Matrix4x4.TRS(new Vector3(-4.5f, 0, 0), Quaternion.identity, new Vector3(100f, 100f, 100f)));
+        rp.matProps.SetColor("_BottomColor" , bladeData.BottomColor);
+        rp.matProps.SetColor("_TopColor" , bladeData.TopColor);
+
+        rp.matProps.SetFloat("_NumInstances", 10.0f);
+        rp.matProps.SetInt("_PointNum" , this.pointNum);
+        rp.matProps.SetFloat("_Interval" , interval);
+        rp.matProps.SetBuffer("_UV" , meshUV);
     }
 }
