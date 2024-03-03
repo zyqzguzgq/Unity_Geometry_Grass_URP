@@ -887,9 +887,15 @@ MonoBehaviour:
   fieldWidth: 0
   mBladeCount: 10000
   interval: 0.2
-  BladeWidth: 1
-  BladeHeight: 1
-  BendRotationRandom: 0
+  bladeData:
+    BladeWidth: 0.458
+    BladeHeight: 2.32
+    BendRotationRandom: 0.3
+    BendDownFactor: 0.66
+    Curve: 1.108
+    BendStrength: 1.67
+    BottomColor: {r: 0, g: 0.2, b: 0.015686275, a: 1}
+    TopColor: {r: 0.40784314, g: 0.59607846, b: 0.27450982, a: 0}
 --- !u!4 &1284825540
 Transform:
   m_ObjectHideFlags: 0
