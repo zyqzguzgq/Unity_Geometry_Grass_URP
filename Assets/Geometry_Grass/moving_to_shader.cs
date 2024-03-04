@@ -10,5 +10,6 @@ public class moving_to_shader : MonoBehaviour
     void Update()
     {
         Shader.SetGlobalVector("_PositionMoving", transform.position);
+        
     }
 }

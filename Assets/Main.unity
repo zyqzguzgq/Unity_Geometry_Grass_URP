@@ -883,19 +883,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   computeShader: {fileID: 7200000, guid: b8ab9204e6d14bc4999065e6a02961db, type: 3}
   material: {fileID: 2100000, guid: ccc9bf736550e5d4f9ed414f1a34d3f4, type: 2}
-  mesh: {fileID: 7556639021688001418, guid: a3138cd81fb081749b0d0dce1ae592b2, type: 3}
-  fieldWidth: 0
+  mesh: {fileID: 7556639021688001418, guid: e74e3b2247b31654e966eae2b59a8535, type: 3}
+  WindTexture: {fileID: 2800000, guid: f28bba76fb944bc48be841e3ab6c411f, type: 3}
+  _WindStrengthFactor: 0.25
+  _WindFrequency: 0.58
+  fieldWidth: 50
   mBladeCount: 10000
   interval: 0.2
   bladeData:
-    BladeWidth: 0.458
-    BladeHeight: 2.32
-    BendRotationRandom: 0.3
+    BladeWidth: 0.391
+    BladeHeight: 1.44
+    BendRotationRandom: 0.479
     BendDownFactor: 0.66
     Curve: 1.108
-    BendStrength: 1.67
+    BendStrength: 2.97
     BottomColor: {r: 0, g: 0.2, b: 0.015686275, a: 1}
-    TopColor: {r: 0.40784314, g: 0.59607846, b: 0.27450982, a: 0}
+    TopColor: {r: 0.6509804, g: 0.8509804, b: 0.47843137, a: 0}
 --- !u!4 &1284825540
 Transform:
   m_ObjectHideFlags: 0
@@ -905,7 +908,7 @@ Transform:
   m_GameObject: {fileID: 1284825538}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.1990376, y: 1.69, z: -1.331}
+  m_LocalPosition: {x: -5, y: 0, z: -5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

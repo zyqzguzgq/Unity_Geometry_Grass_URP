@@ -7,4 +7,6 @@
 
 29/02/2024  加两个buffer，一个是坐标输入buffer，一个是坐标输出buffer。计划是输入一个instance的每个顶点的坐标，然后输出要的总共数量的顶点坐标即为 instanceCount * pointNum
 
-01/03/2024  完成了bend，face和scale的矩阵，后面的曲率计划采用贝塞尔曲线完成还有风的影响。
+01/03/2024  完成了bend，face和scale的矩阵，后面的曲率计划采用贝塞尔曲线完成还有风的影响。   
+
+04/03/2024  完成了光照着色和阴影和风的扰动，换了DrawProceduralIndirect函数

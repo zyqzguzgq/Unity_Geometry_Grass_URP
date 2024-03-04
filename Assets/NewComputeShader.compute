@@ -10,6 +10,21 @@ struct BladeData {
 	float4 color;
 };
 
+float4 _ObjectPosition;
+Texture2D _WindTexture;
+SamplerState sampler_WindTexture
+{
+    Filter = MIN_MAG_MIP_LINEAR;
+    AddressU = Wrap;
+    AddressV = Wrap;
+};
+
+
+float _WindStrengthFactor;
+float _WindFrequency;
+float _Time;
+int _FieldWidth;
+
 float _BladeWidth;
 float _BladeHeight;
 float _BendRotationRandom;
@@ -18,9 +33,12 @@ float _Curve ;
 float _BendStrength ;
 
 
+
+
 //声明buffer
 RWStructuredBuffer<BladeData> BladeBuffer;
 RWStructuredBuffer<float3> BladeOutPosBuffer;
+RWStructuredBuffer<float3> BladeNormalWSBuffer;
 RWStructuredBuffer<float3> BladeInPosBuffer;
 
 float4x4 _ObjectToWorld;
@@ -51,37 +69,56 @@ float rand(float3 co)
 
 
 
-
-
-
 [numthreads(64, 1, 1)]
 void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex , uint3 threadID : SV_GroupThreadID)
 {
+	
 	float3x3 scaleMatrix = float3x3(_BladeWidth,0,1,
 									0,_BladeHeight,0,
 									0,0,1);
 	int pindex = gid.x * 64  + index;
-	float BladePosX = pindex % 100 * _Interval;
-    float BladePosZ = pindex / 100 * _Interval;
+	float BladePosX = pindex % _FieldWidth * _Interval;
+    float BladePosZ = pindex / _FieldWidth * _Interval;
 	float3 BladePosOffset = float3(BladePosX,0,BladePosZ);
+	
+	float2 Winduv = float2(BladePosX , BladePosZ) + _Time/10*_WindFrequency;
 
 
+	float3 BendVector = normalize(float3(-2.14 , -_BendDownFactor , 1));
 
-	float3 BendVector = normalize(float3(0 , -_BendDownFactor , 1));
+	
+	float3 windVector = _WindTexture.SampleLevel(sampler_WindTexture , Winduv,0);
+	float windStrength = dot(windVector,windVector);
+	
 
-
-	float3x3 facingRotationMatrix = AngleAxis3x3(rand(BladePosOffset) * UNITY_TWO_PI, float3(0, 1, 0));
+	float3x3 facingRotationMatrix = AngleAxis3x3(rand(BladePosOffset) * UNITY_TWO_PI , float3(0, 1, 0));
 	float3x3 bendRotationMatrix = AngleAxis3x3(rand(BladePosOffset.zzx) * _BendRotationRandom * UNITY_PI * 0.5 , float3(-1, 0, 0));
-	float3x3 transformMatrix = mul(facingRotationMatrix,mul(bendRotationMatrix , scaleMatrix));
+	float3x3 windRotationMatrix = AngleAxis3x3(windStrength * _WindStrengthFactor , float3(windVector.x,0, windVector.y));
+	float3x3 transformMatrix = mul(mul(facingRotationMatrix,mul(bendRotationMatrix , scaleMatrix)),windRotationMatrix);
 
 
 	for(int i =0; i<pointNum;i++)
 	{
 		int index = pindex * pointNum + i;
 		float3 posTemp = BladeInPosBuffer[i] + pow(BladeInPosBuffer[i].y , _Curve) * _BendStrength * BendVector;
+		
 		float3 positionOS = mul(transformMatrix,posTemp);
-		float3 positionWS = mul(_ObjectToWorld , float4(positionOS,1)).xyz + BladePosOffset;
+		float3 positionWS = mul(_ObjectToWorld , float4(positionOS,1)).xyz + BladePosOffset + _ObjectPosition.xyz;
 		BladeOutPosBuffer[index] = positionWS;
 	}
+
+	float3 normalWStri;
+	for(int i =2; i<pointNum;i =i+2)
+	{
+		int index = pindex * pointNum + i-2;
+		
+		normalWStri = cross(normalize(BladeOutPosBuffer[index] - BladeOutPosBuffer[index+2]), 
+									normalize(BladeOutPosBuffer[index+1] - BladeOutPosBuffer[index+2]));
+		BladeNormalWSBuffer[index] = 	normalWStri;
+		BladeNormalWSBuffer[index+1] = 	normalWStri;
+		BladeNormalWSBuffer[index+2] = 	normalWStri;
+	}
+	
+	
 
 }

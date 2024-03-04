@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
+using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -8,9 +10,14 @@ public class DrawBlade : MonoBehaviour
     public ComputeShader computeShader;
     public Material material;
     public Mesh mesh;
-    public float fieldWidth = 100;
-    public int mBladeCount = 10000;
-    [Range(0,0.2f)]
+    public Texture2D WindTexture;
+    public float _WindStrengthFactor = 1f;
+    public float _WindFrequency = 1f;
+
+    public int fieldWidth = 100;
+    [SerializeField, Unity.Collections.ReadOnly]
+    public int mBladeCount ;
+    [Range(0,2f)]
     public float interval = 0.2f;
     [System.Serializable]
     public struct BladeDatas
@@ -37,9 +44,12 @@ public class DrawBlade : MonoBehaviour
     GraphicsBuffer meshTriangles;
     GraphicsBuffer meshPositions;
     GraphicsBuffer meshUV;
+    //GraphicsBuffer bufferWithArgs;
+    ComputeBuffer bufferWithArgs;
 
     ComputeBuffer mBladeDataBuffer;
     ComputeBuffer mBladeOutPosBuffer;
+    ComputeBuffer mBladeNormalWSBuffer;
     ComputeBuffer mBladeInPosBuffer;
     int kernelId;
 
@@ -60,7 +70,7 @@ public struct BladeData
         int pointNum = mesh.vertices.Length;
         this.pointNum = pointNum;
 
-        this.mBladeCount = 10000;
+        this.mBladeCount = fieldWidth * fieldWidth;
         
         
         mBladeDataBuffer = new ComputeBuffer(this.mBladeCount,4*(3+4));
@@ -71,12 +81,16 @@ public struct BladeData
 
         Vector3[] Pos = new Vector3[mBladeCount * pointNum];
 
+        mBladeNormalWSBuffer = new ComputeBuffer(mBladeCount *pointNum,   3 *4);
+        Vector3[] NormalWS = new Vector3[mBladeCount * pointNum];
+
         mBladeInPosBuffer = new ComputeBuffer(pointNum ,  3 *4);
 
         
 
         mBladeDataBuffer.SetData(BladeDatas);
         mBladeOutPosBuffer.SetData(Pos);
+        mBladeNormalWSBuffer.SetData(NormalWS);
         mBladeInPosBuffer.SetData(mesh.vertices);
 
         kernelId = computeShader.FindKernel("UpdateBlade");
@@ -89,11 +103,24 @@ public struct BladeData
         meshPositions.SetData(mesh.vertices);
         meshUV = new GraphicsBuffer(GraphicsBuffer.Target.Structured , mesh.uv.Length , 2 * sizeof(float));
         meshUV.SetData(mesh.uv);
+
+        /*int[] args = new int[5] { 0, 0, 0, 0,0 };
+        
+        
+        args[0] = pointNum;
+        args[1] = mBladeCount;     
+        args[2] = 0;
+        args[3] = 0; 
+        args[4] =0;*/
+        
+        
+        bufferWithArgs = new ComputeBuffer(1,sizeof(int) *5,ComputeBufferType.IndirectArguments);
+        bufferWithArgs.SetData(new int[]{meshTriangles.count , mBladeCount ,0,0,0});
     }
 
     void Update() {
        
-        this.mBladeCount = 10000;
+        this.mBladeCount = fieldWidth * fieldWidth;
 
         ComputeShaderSetting(ref computeShader);
         
@@ -105,9 +132,23 @@ public struct BladeData
         GraphicsShaderSetting(ref rp);
         
 
-        Graphics.RenderPrimitivesIndexed(rp, MeshTopology.Triangles, meshTriangles, meshTriangles.count, (int)mesh.GetIndexStart(0), mBladeCount);
+        //Graphics.RenderPrimitivesIndexed(rp, MeshTopology.Triangles, meshTriangles, meshTriangles.count, (int)mesh.GetIndexStart(0), mBladeCount);
+        //Graphics.DrawProceduralIndirect(rp.material , rp.worldBounds,MeshTopology.Triangles,meshTriangles, bufferWithArgs,0,null,null,UnityEngine.Rendering.ShadowCastingMode.On,true,0);
+        Graphics.DrawProceduralIndirect(
+            rp.material,
+            rp.worldBounds,
+            MeshTopology.Triangles, // 假设我们以三角形拓扑渲染
+            meshTriangles,
+            bufferWithArgs,
+            0, // argsOffset
+            null, // 默认渲染到当前激活的摄像机
+            rp.matProps, 
+            UnityEngine.Rendering.ShadowCastingMode.On, // 开启阴影投射
+            true // 允许接收阴影
+            // 使用当前GameObject的层
+        );
+        
     }
-
 
 
     void OnDestroy() {
@@ -117,6 +158,8 @@ public struct BladeData
         mBladeOutPosBuffer.Dispose();
         mBladeInPosBuffer.Release();
         mBladeInPosBuffer.Dispose();
+        mBladeNormalWSBuffer.Release();
+        mBladeNormalWSBuffer.Dispose();
 
 
         meshTriangles?.Dispose();
@@ -125,13 +168,20 @@ public struct BladeData
         meshPositions = null;
         meshUV?.Dispose();
         meshUV = null;
+        bufferWithArgs?.Dispose();
+        bufferWithArgs = null;
     }
 
     void ComputeShaderSetting(ref ComputeShader computeShader)
     {
         computeShader.SetBuffer(kernelId, "BladeBuffer", mBladeDataBuffer);
         computeShader.SetBuffer(kernelId, "BladeOutPosBuffer", mBladeOutPosBuffer);
+        computeShader.SetBuffer(kernelId, "BladeNormalWSBuffer" , mBladeNormalWSBuffer);
         computeShader.SetBuffer(kernelId, "BladeInPosBuffer" , mBladeInPosBuffer);
+        computeShader.SetTexture(kernelId, "_WindTexture" , WindTexture);
+        computeShader.SetVector( "_ObjectPosition", transform.position);
+        computeShader.SetInt("_FieldWidth", this.fieldWidth);
+
         computeShader.SetInt("pointNum",this.pointNum);
         computeShader.SetFloat("_BladeWidth" , bladeData.BladeWidth);
         computeShader.SetFloat("_BladeHeight" , bladeData.BladeHeight);
@@ -140,7 +190,11 @@ public struct BladeData
         computeShader.SetFloat("_Curve" , bladeData.Curve);
         computeShader.SetFloat("_BendStrength" , bladeData.BendStrength);
         computeShader.SetFloat("_BendRotationRandom" , bladeData.BendRotationRandom);
-        computeShader.SetMatrix("_ObjectToWorld" , Matrix4x4.TRS(new Vector3(-4.5f, 0, 0), Quaternion.identity, new Vector3(100f , 100f , 100f)));
+        computeShader.SetFloat("_Time" , Time.time);
+        computeShader.SetFloat("_WindStrengthFactor" , _WindStrengthFactor);
+        computeShader.SetFloat("_WindFrequency" , _WindFrequency);
+        computeShader.SetMatrix("_ObjectToWorld" , Matrix4x4.TRS(new Vector3(0, 0, 0), Quaternion.identity, new Vector3(100f , 100f , 100f)));
+        
         computeShader.Dispatch(kernelId, mBladeCount /64, 1, 1);
     }
 
@@ -149,13 +203,15 @@ public struct BladeData
         rp.matProps.SetBuffer("_Positions", meshPositions);
         rp.matProps.SetBuffer("_BladeDataBuffer", mBladeDataBuffer);
         rp.matProps.SetBuffer("_OutPosBuffer" , mBladeOutPosBuffer);
+        rp.matProps.SetBuffer("_BladeNormalWSBuffer" , mBladeNormalWSBuffer);
         rp.matProps.SetInt("_BaseVertexIndex", (int)mesh.GetBaseVertex(0));
-        rp.matProps.SetMatrix("_ObjectToWorld", Matrix4x4.TRS(new Vector3(-4.5f, 0, 0), Quaternion.identity, new Vector3(100f, 100f, 100f)));
+        rp.matProps.SetMatrix("_ObjectToWorld", Matrix4x4.TRS(new Vector3(0, 0, 0), Quaternion.identity, new Vector3(100f, 100f, 100f)));
         rp.matProps.SetColor("_BottomColor" , bladeData.BottomColor);
         rp.matProps.SetColor("_TopColor" , bladeData.TopColor);
 
         rp.matProps.SetFloat("_NumInstances", 10.0f);
         rp.matProps.SetInt("_PointNum" , this.pointNum);
+        rp.matProps.SetInt("_FiedWidth", this.fieldWidth);
         rp.matProps.SetFloat("_Interval" , interval);
         rp.matProps.SetBuffer("_UV" , meshUV);
     }
