@@ -1,18 +1,31 @@
 #pragma kernel UpdateBlade
 #define UNITY_TWO_PI 6.28
 #define UNITY_PI 3.14
+#define VERTEX_NUM 9
 
 int pointNum;
 float _Interval;
 
-struct BladeData {
-	float3 pos;
-	float4 color;
+
+struct BladeData
+{
+	float3 posWS[VERTEX_NUM];
+	float3 normalWS[VERTEX_NUM];
 };
 
 float4 _ObjectPosition;
+
+
 Texture2D _WindTexture;
 SamplerState sampler_WindTexture
+{
+    Filter = MIN_MAG_MIP_LINEAR;
+    AddressU = Wrap;
+    AddressV = Wrap;
+};
+
+Texture2D _GrassToward;
+SamplerState sampler_GrassToward
 {
     Filter = MIN_MAG_MIP_LINEAR;
     AddressU = Wrap;
@@ -38,16 +51,29 @@ float _BendStrength ;
 
 
 //声明buffer
-RWStructuredBuffer<BladeData> BladeBuffer;
-RWStructuredBuffer<float3> BladeOutPosBuffer;
-RWStructuredBuffer<float3> BladeNormalWSBuffer;
+
+RWStructuredBuffer<BladeData> BladeDataBuffer;
+
 RWStructuredBuffer<float3> BladeInPosBuffer;
+AppendStructuredBuffer<BladeData> CullingResultsBuffer;
+
+
+float4 planes[6];
 
 float4x4 _ObjectToWorld;
 
+bool IsOutsideThePlane(float4 plane, float3 pointPosition)
+{
+    if (dot(plane.xyz, pointPosition) + plane.w > 0)
+        return true;
+    return false;
+}
+
+
 void objectInteraction(inout float3 bladePosWS , float level )
 {
-	level = pow(level , 1.5);
+	//因为factor是1，所以用不到pow函数
+	//level = pow(level , 1);
 	float3 interVec = bladePosWS - _Moving_Position.xyz;
 	float3 movingVec = normalize(float3(interVec.x , -0.2 , interVec.z));
 	
@@ -83,30 +109,36 @@ float rand(float3 co)
 
 
 
-[numthreads(64, 1, 1)]
+[numthreads(640, 1, 1)]
 void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex , uint3 threadID : SV_GroupThreadID)
 {
 	
 	float3x3 scaleMatrix = float3x3(_BladeWidth,0,1,
 									0,_BladeHeight,0,
 									0,0,1);
-	int pindex = gid.x * 64  + index;
+	int pindex = gid.x * 640  + index;
 	float BladePosX = pindex % _FieldWidth * _Interval;
     float BladePosZ = pindex / _FieldWidth * _Interval;
+	float2 groundUV = float2(BladePosX , BladePosZ)/_Interval /_FieldWidth;
 	float3 BladePosOffset = float3(BladePosX,0,BladePosZ);
 	
-	float2 Winduv = float2(BladePosX , BladePosZ) + _Time/10*_WindFrequency;
+	float2 Winduv = groundUV + _Time/10*_WindFrequency;
 
 
 	float3 BendVector = normalize(float3(-2.14 , -_BendDownFactor , 1));
 
 	
-	float3 windVector = _WindTexture.SampleLevel(sampler_WindTexture , Winduv,0);
+	float3 windVector = _WindTexture.SampleLevel(sampler_WindTexture , Winduv,0)*2-1;
 	float windStrength = dot(windVector,windVector);
-	
+	/*
+	float2 GrassTowardVector = _GrassToward.SampleLevel(sampler_GrassToward, groundUV,0)*2 -1;
+	float3 ForwardVector = normalize(float3(GrassTowardVector.x , 0 ,GrassTowardVector.y));
+	float3 UpVector = float3(0,1,0);
+	float3 rightVector = normalize(cross(UpVector , ForwardVector));
+	float3x3 facingRotationMatrix = float3x3(rightVector, UpVector,ForwardVector);*/
 
 	float3x3 facingRotationMatrix = AngleAxis3x3(rand(BladePosOffset) * UNITY_TWO_PI , float3(0, 1, 0));
-	float3x3 bendRotationMatrix = AngleAxis3x3(rand(BladePosOffset.zzx) * _BendRotationRandom * UNITY_PI * 0.5 , float3(-1, 0, 0));
+	float3x3 bendRotationMatrix = AngleAxis3x3(rand(BladePosOffset.zzx) * _BendRotationRandom * UNITY_PI * 0.5 , float3(1, 0, 0));
 	float3x3 windRotationMatrix = AngleAxis3x3(windStrength * _WindStrengthFactor , float3(windVector.x,0, windVector.y));
 	float3x3 transformMatrix = mul(mul(facingRotationMatrix,mul(bendRotationMatrix , scaleMatrix)),windRotationMatrix);
 
@@ -119,24 +151,43 @@ void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex , uint3 thre
 		float3 positionOS = mul(transformMatrix,posTemp);
 		float3 positionWS = mul(_ObjectToWorld , float4(positionOS,1)).xyz + BladePosOffset + _ObjectPosition.xyz;
 		objectInteraction(positionWS , (float)(i));
-		BladeOutPosBuffer[index] = positionWS;
+		BladeDataBuffer[pindex].posWS[i] = positionWS;
 	}
+	
+	float3 boundVerts[4];
+	boundVerts[0] = BladeDataBuffer[pindex].posWS[0];
+	boundVerts[1] = BladeDataBuffer[pindex].posWS[1];
+	boundVerts[2] = boundVerts[0]*0.5 + boundVerts[1]*0.5;
+	boundVerts[3] = BladeDataBuffer[pindex].posWS[pointNum-1];
+	boundVerts[2].y = boundVerts[3].y;
+	
+	
+	for (int i = 0; i < 6; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            float3 boundPosition = boundVerts[j];
+
+            if (!IsOutsideThePlane(planes[i], boundPosition))
+                break;
+            if (j == 3)
+                return;
+        }
+    }
+
 
 	float3 normalWStri;
 	for(int i =2; i<pointNum;i =i+2)
 	{
 		int index = pindex * pointNum + i-2;
+		normalWStri = cross(normalize(BladeDataBuffer[pindex].posWS[i-2] - BladeDataBuffer[pindex].posWS[i]), 
+									normalize(BladeDataBuffer[pindex].posWS[i-1] - BladeDataBuffer[pindex].posWS[i]));
 		
-		normalWStri = cross(normalize(BladeOutPosBuffer[index] - BladeOutPosBuffer[index+2]), 
-									normalize(BladeOutPosBuffer[index+1] - BladeOutPosBuffer[index+2]));
-		/*BladeNormalWSBuffer[index] = 	normalWStri;
-		BladeNormalWSBuffer[index+1] = 	normalWStri;
-		BladeNormalWSBuffer[index+2] = 	normalWStri;*/
-		BladeNormalWSBuffer[index] = 	_Moving_Position;
-		BladeNormalWSBuffer[index+1] = 	_Moving_Position;
-		BladeNormalWSBuffer[index+2] = 	_Moving_Position;
+		BladeDataBuffer[pindex].normalWS[i-2] = normalWStri;
+		BladeDataBuffer[pindex].normalWS[i-1] = normalWStri;
+		BladeDataBuffer[pindex].normalWS[i] = normalWStri;
 	}
-	
-	
+
+	CullingResultsBuffer.Append(BladeDataBuffer[pindex]);
 
 }

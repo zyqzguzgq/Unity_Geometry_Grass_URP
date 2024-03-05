@@ -13,6 +13,7 @@ public class DrawBlade : MonoBehaviour
     public Texture2D WindTexture;
     public float _WindStrengthFactor = 1f;
     public float _WindFrequency = 1f;
+    public Texture2D GrassToward;
 
     public int fieldWidth = 100;
 
@@ -36,7 +37,7 @@ public class DrawBlade : MonoBehaviour
         public float BendRotationRandom;
         
         public float BendDownFactor;
-        [Range(1f,1.5f)]
+        [Range(0f,1.5f)]
         public float Curve ;
         public float BendStrength ;
         public Color BottomColor;
@@ -49,23 +50,20 @@ public class DrawBlade : MonoBehaviour
     GraphicsBuffer meshTriangles;
     GraphicsBuffer meshPositions;
     GraphicsBuffer meshUV;
-    //GraphicsBuffer bufferWithArgs;
     ComputeBuffer bufferWithArgs;
 
     ComputeBuffer mBladeDataBuffer;
-    ComputeBuffer mBladeOutPosBuffer;
-    ComputeBuffer mBladeNormalWSBuffer;
     ComputeBuffer mBladeInPosBuffer;
+    ComputeBuffer mCullingResultBuffer;
+
+    Camera mainCamera;
     int kernelId;
 
     private int pointNum;
 
-public struct BladeData 
-{
-    public Vector3 pos;
-    public Color color;
+    Vector4[] planes;
 
-}
+
     
     
     
@@ -75,27 +73,19 @@ public struct BladeData
         int pointNum = mesh.vertices.Length;
         this.pointNum = pointNum;
 
+        mainCamera = Camera.main;
+
         this.mBladeCount = fieldWidth * fieldWidth;
         
-        
-        mBladeDataBuffer = new ComputeBuffer(this.mBladeCount,4*(3+4));
-        
-        BladeData[] BladeDatas = new BladeData[mBladeCount];
-
-        mBladeOutPosBuffer = new ComputeBuffer(mBladeCount *pointNum,   3 *4);
-
-        Vector3[] Pos = new Vector3[mBladeCount * pointNum];
-
-        mBladeNormalWSBuffer = new ComputeBuffer(mBladeCount *pointNum,   3 *4);
-        Vector3[] NormalWS = new Vector3[mBladeCount * pointNum];
+        mBladeDataBuffer = new ComputeBuffer(mBladeCount , pointNum * 3 * 4 *2);
 
         mBladeInPosBuffer = new ComputeBuffer(pointNum ,  3 *4);
 
+        mCullingResultBuffer = new ComputeBuffer(mBladeCount , pointNum * 3 * 4 * 2 ,ComputeBufferType.Append);
         
 
-        mBladeDataBuffer.SetData(BladeDatas);
-        mBladeOutPosBuffer.SetData(Pos);
-        mBladeNormalWSBuffer.SetData(NormalWS);
+        
+
         mBladeInPosBuffer.SetData(mesh.vertices);
 
         kernelId = computeShader.FindKernel("UpdateBlade");
@@ -125,18 +115,21 @@ public struct BladeData
 
     void Update() {
         moving_position = movingObjectTransform.position;
-       
-        this.mBladeCount = fieldWidth * fieldWidth;
+        this.planes = CullTool.GetFrustumPlane(mainCamera);
 
+        this.mBladeCount = fieldWidth * fieldWidth;
+        mCullingResultBuffer.SetCounterValue(0);
         ComputeShaderSetting(ref computeShader);
         
 
         RenderParams rp = new RenderParams(material);
         rp.worldBounds = new Bounds(Vector3.zero, 10000*Vector3.one); // use tighter bounds
         rp.matProps = new MaterialPropertyBlock();
+        
 
         GraphicsShaderSetting(ref rp);
-        
+
+        ComputeBuffer.CopyCount(mCullingResultBuffer ,bufferWithArgs,sizeof(int));
 
         //Graphics.RenderPrimitivesIndexed(rp, MeshTopology.Triangles, meshTriangles, meshTriangles.count, (int)mesh.GetIndexStart(0), mBladeCount);
         Graphics.DrawProceduralIndirect(
@@ -157,14 +150,14 @@ public struct BladeData
 
 
     void OnDestroy() {
+        
         mBladeDataBuffer.Release();
         mBladeDataBuffer.Dispose();
-        mBladeOutPosBuffer.Release();
-        mBladeOutPosBuffer.Dispose();
         mBladeInPosBuffer.Release();
         mBladeInPosBuffer.Dispose();
-        mBladeNormalWSBuffer.Release();
-        mBladeNormalWSBuffer.Dispose();
+        mCullingResultBuffer.Release();
+        mCullingResultBuffer.Dispose();
+
 
 
         meshTriangles?.Dispose();
@@ -179,11 +172,13 @@ public struct BladeData
 
     void ComputeShaderSetting(ref ComputeShader computeShader)
     {
-        computeShader.SetBuffer(kernelId, "BladeBuffer", mBladeDataBuffer);
-        computeShader.SetBuffer(kernelId, "BladeOutPosBuffer", mBladeOutPosBuffer);
-        computeShader.SetBuffer(kernelId, "BladeNormalWSBuffer" , mBladeNormalWSBuffer);
+        computeShader.SetBuffer(kernelId ,"BladeDataBuffer" , mBladeDataBuffer);
         computeShader.SetBuffer(kernelId, "BladeInPosBuffer" , mBladeInPosBuffer);
+        computeShader.SetBuffer(kernelId, "CullingResultsBuffer", mCullingResultBuffer);
+
+        computeShader.SetVectorArray("planes", planes);
         computeShader.SetTexture(kernelId, "_WindTexture" , WindTexture);
+        computeShader.SetTexture(kernelId,"_GrassToward",GrassToward);
         computeShader.SetVector( "_ObjectPosition", transform.position);
         computeShader.SetInt("_FieldWidth", this.fieldWidth);
         computeShader.SetVector("_Moving_Position" , moving_position);
@@ -202,15 +197,15 @@ public struct BladeData
         computeShader.SetFloat("_WindFrequency" , _WindFrequency);
         computeShader.SetMatrix("_ObjectToWorld" , Matrix4x4.TRS(new Vector3(0, 0, 0), Quaternion.identity, new Vector3(100f , 100f , 100f)));
         
-        computeShader.Dispatch(kernelId, mBladeCount /64, 1, 1);
+        computeShader.Dispatch(kernelId, mBladeCount /640, 1, 1);
     }
 
     void GraphicsShaderSetting(ref RenderParams rp)
     {
         rp.matProps.SetBuffer("_Positions", meshPositions);
-        rp.matProps.SetBuffer("_BladeDataBuffer", mBladeDataBuffer);
-        rp.matProps.SetBuffer("_OutPosBuffer" , mBladeOutPosBuffer);
-        rp.matProps.SetBuffer("_BladeNormalWSBuffer" , mBladeNormalWSBuffer);
+        rp.matProps.SetBuffer("_BladeDataBuffer",mBladeDataBuffer);
+        rp.matProps.SetBuffer("_CullingResultBuffer" , mCullingResultBuffer);
+
         rp.matProps.SetInt("_BaseVertexIndex", (int)mesh.GetBaseVertex(0));
         rp.matProps.SetMatrix("_ObjectToWorld", Matrix4x4.TRS(new Vector3(0, 0, 0), Quaternion.identity, new Vector3(100f, 100f, 100f)));
         rp.matProps.SetColor("_BottomColor" , bladeData.BottomColor);

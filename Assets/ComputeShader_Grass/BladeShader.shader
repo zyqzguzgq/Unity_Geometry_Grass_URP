@@ -15,6 +15,7 @@ Shader "Unlit/BladeShader"
             #define MAIN_LIGHT_CALCULATE_SHADOWS
             #define _MAIN_LIGHT_SHADOWS_CASCADE
             #define UNITY_INDIRECT_DRAW_ARGS IndirectDrawIndexedArgs
+            #define VERTEX_NUM 9
             #include "UnityIndirect.cginc"  
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 	        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
@@ -30,18 +31,18 @@ Shader "Unlit/BladeShader"
                 float2 uv : TEXCOORD1;
             };
 
+           
             struct BladeData
             {
-                float3 pos;
-                float4 color;
+                float3 posWS[VERTEX_NUM];
+                float3 normalWS[VERTEX_NUM];
             };
 
+            
             StructuredBuffer<BladeData> _BladeDataBuffer;
 
-            StructuredBuffer<float3> _OutPosBuffer;
-            StructuredBuffer<float3> _BladeNormalWSBuffer;
-
             StructuredBuffer<float3> _Positions;
+            StructuredBuffer<BladeData> _CullingResultBuffer;
 
             StructuredBuffer<float2> _UV;
 
@@ -58,8 +59,11 @@ Shader "Unlit/BladeShader"
             {
                 v2f o;
                 //float3 pos = _Positions[id + _BaseVertexIndex];
-                o.posWS = _OutPosBuffer[id + instanceID * _PointNum];
-                o.normalWS = _BladeNormalWSBuffer[id + instanceID * _PointNum];
+                //o.posWS = _OutPosBuffer[id + instanceID * _PointNum];
+                //o.posWS = _BladeDataBuffer[instanceID].posWS[id];
+                o.posWS = _CullingResultBuffer[instanceID].posWS[id];
+                
+                o.normalWS = _CullingResultBuffer[instanceID].normalWS[id];
                 float BladePosX = instanceID % _FiedWidth * _Interval;
                 float BladePosZ = instanceID / _FiedWidth * _Interval;
                 float4 wpos = float4(o.posWS , 1.0f) ;
@@ -82,7 +86,7 @@ Shader "Unlit/BladeShader"
                 float4 finalColor = lerp(_BottomColor,_TopColor,i.uv.y);
                 float4 lightCol = float4(light.color,1) *(light.shadowAttenuation) ;
 				float3 diffuse = (lerp(0.7,1,dot(normal , _LightDirection))) * lightCol.xyz;
-                //return  float4(normal,1);
+                //return  float4(normal*0.5+0.5,1);
                 return finalColor * float4(diffuse,1);
             }
             ENDHLSL
@@ -104,7 +108,7 @@ Shader "Unlit/BladeShader"
             Cull[_Cull]
 
             HLSLPROGRAM
-
+            #define VERTEX_NUM 9
             // -------------------------------------
             // Shader Stages
             #pragma vertex vert
@@ -123,7 +127,7 @@ Shader "Unlit/BladeShader"
             #pragma multi_compile_instancing
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-
+            
             // -------------------------------------
             // Universal Pipeline keywords
 
@@ -147,10 +151,17 @@ Shader "Unlit/BladeShader"
             };
 
 
-            StructuredBuffer<float3> _OutPosBuffer;
-            StructuredBuffer<float3> _BladeNormalWSBuffer;
+            struct BladeData
+            {
+                float3 posWS[VERTEX_NUM];
+                float3 normalWS[VERTEX_NUM];
+            };
+
+            
+            StructuredBuffer<BladeData> _BladeDataBuffer;
 
             StructuredBuffer<float3> _Positions;
+            StructuredBuffer<BladeData> _CullingResultBuffer;
 
             StructuredBuffer<float2> _UV;
 
@@ -168,8 +179,8 @@ Shader "Unlit/BladeShader"
             {
                 v2f o;
                 //float3 pos = _Positions[id + _BaseVertexIndex];
-                o.posWS = _OutPosBuffer[id + instanceID * _PointNum];
-                o.normalWS = _BladeNormalWSBuffer[id + instanceID * _PointNum];
+                o.posWS = _CullingResultBuffer[instanceID].posWS[id];
+                o.normalWS = _CullingResultBuffer[instanceID].normalWS[id];
                 float BladePosX = instanceID % _FiedWidth * _Interval;
                 float BladePosZ = instanceID / _FiedWidth * _Interval;
                 float4 wpos = float4(o.posWS , 1.0f) ;
