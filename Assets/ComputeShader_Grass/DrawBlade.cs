@@ -15,6 +15,11 @@ public class DrawBlade : MonoBehaviour
     public float _WindFrequency = 1f;
 
     public int fieldWidth = 100;
+
+    private Vector3 moving_position;
+    public Transform movingObjectTransform;
+    public float ImpactRadius = 0.08f;
+    
     [SerializeField, Unity.Collections.ReadOnly]
     public int mBladeCount ;
     [Range(0,2f)]
@@ -62,7 +67,7 @@ public struct BladeData
 
 }
     
-
+    
     
 
     void Start() {
@@ -119,6 +124,7 @@ public struct BladeData
     }
 
     void Update() {
+        moving_position = movingObjectTransform.position;
        
         this.mBladeCount = fieldWidth * fieldWidth;
 
@@ -133,7 +139,6 @@ public struct BladeData
         
 
         //Graphics.RenderPrimitivesIndexed(rp, MeshTopology.Triangles, meshTriangles, meshTriangles.count, (int)mesh.GetIndexStart(0), mBladeCount);
-        //Graphics.DrawProceduralIndirect(rp.material , rp.worldBounds,MeshTopology.Triangles,meshTriangles, bufferWithArgs,0,null,null,UnityEngine.Rendering.ShadowCastingMode.On,true,0);
         Graphics.DrawProceduralIndirect(
             rp.material,
             rp.worldBounds,
@@ -181,6 +186,8 @@ public struct BladeData
         computeShader.SetTexture(kernelId, "_WindTexture" , WindTexture);
         computeShader.SetVector( "_ObjectPosition", transform.position);
         computeShader.SetInt("_FieldWidth", this.fieldWidth);
+        computeShader.SetVector("_Moving_Position" , moving_position);
+        computeShader.SetFloat("_ImpactRadius" , ImpactRadius);
 
         computeShader.SetInt("pointNum",this.pointNum);
         computeShader.SetFloat("_BladeWidth" , bladeData.BladeWidth);

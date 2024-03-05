@@ -10,12 +10,16 @@ Shader "Unlit/BladeShader"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-
+            
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #define MAIN_LIGHT_CALCULATE_SHADOWS
+            #define _MAIN_LIGHT_SHADOWS_CASCADE
             #define UNITY_INDIRECT_DRAW_ARGS IndirectDrawIndexedArgs
             #include "UnityIndirect.cginc"  
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 	        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN      // URP 主光阴影、联机阴影、屏幕空间阴影
+			#pragma multi_compile_fragment _ _SHADOWS_SOFT      // URP 软阴影
             float3 _LightDirection;
 
             struct v2f
@@ -76,8 +80,9 @@ Shader "Unlit/BladeShader"
                 
 				normal = normalize(normal);
                 float4 finalColor = lerp(_BottomColor,_TopColor,i.uv.y);
-                float4 lightCol = float4(light.color,1) ;
+                float4 lightCol = float4(light.color,1) *(light.shadowAttenuation) ;
 				float3 diffuse = (lerp(0.7,1,dot(normal , _LightDirection))) * lightCol.xyz;
+                //return  float4(normal,1);
                 return finalColor * float4(diffuse,1);
             }
             ENDHLSL

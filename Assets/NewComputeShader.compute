@@ -19,6 +19,8 @@ SamplerState sampler_WindTexture
     AddressV = Wrap;
 };
 
+float3 _Moving_Position;
+float _ImpactRadius;
 
 float _WindStrengthFactor;
 float _WindFrequency;
@@ -42,6 +44,18 @@ RWStructuredBuffer<float3> BladeNormalWSBuffer;
 RWStructuredBuffer<float3> BladeInPosBuffer;
 
 float4x4 _ObjectToWorld;
+
+void objectInteraction(inout float3 bladePosWS , float level )
+{
+	level = pow(level , 1.5);
+	float3 interVec = bladePosWS - _Moving_Position.xyz;
+	float3 movingVec = normalize(float3(interVec.x , -0.2 , interVec.z));
+	
+	bladePosWS += level * movingVec *  _ImpactRadius * smoothstep(0.8,0.3,length(interVec)) ; 
+	
+	//need to correct
+
+}
 
 
 
@@ -104,6 +118,7 @@ void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex , uint3 thre
 		
 		float3 positionOS = mul(transformMatrix,posTemp);
 		float3 positionWS = mul(_ObjectToWorld , float4(positionOS,1)).xyz + BladePosOffset + _ObjectPosition.xyz;
+		objectInteraction(positionWS , (float)(i));
 		BladeOutPosBuffer[index] = positionWS;
 	}
 
@@ -114,9 +129,12 @@ void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex , uint3 thre
 		
 		normalWStri = cross(normalize(BladeOutPosBuffer[index] - BladeOutPosBuffer[index+2]), 
 									normalize(BladeOutPosBuffer[index+1] - BladeOutPosBuffer[index+2]));
-		BladeNormalWSBuffer[index] = 	normalWStri;
+		/*BladeNormalWSBuffer[index] = 	normalWStri;
 		BladeNormalWSBuffer[index+1] = 	normalWStri;
-		BladeNormalWSBuffer[index+2] = 	normalWStri;
+		BladeNormalWSBuffer[index+2] = 	normalWStri;*/
+		BladeNormalWSBuffer[index] = 	_Moving_Position;
+		BladeNormalWSBuffer[index+1] = 	_Moving_Position;
+		BladeNormalWSBuffer[index+2] = 	_Moving_Position;
 	}
 	
 	
