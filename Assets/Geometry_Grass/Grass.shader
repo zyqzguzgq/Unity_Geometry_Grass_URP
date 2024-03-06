@@ -38,7 +38,7 @@ Shader "Roystan/Grass"
 	
 	#define UNITY_TWO_PI 6.28
 	#define UNITY_PI 3.14
-	#define BLADE_SEGMENTS 3
+	#define BLADE_SEGMENTS 4
 	CBUFFER_START(UnityPerMaterial)
 	float _BendRotationRandom;
 	float _BladeHeight;

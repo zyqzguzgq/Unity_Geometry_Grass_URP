@@ -899,9 +899,9 @@ MonoBehaviour:
     BendRotationRandom: 0
     BendDownFactor: -0.11
     Curve: 1.54
-    BendStrength: 0.02
-    BottomColor: {r: 0, g: 0.2, b: 0.015686275, a: 1}
-    TopColor: {r: 0.6509804, g: 0.8509804, b: 0.47843137, a: 0}
+    BendStrength: 1.5
+    BottomColor: {r: 0.9529412, g: 0.84705883, b: 0.5529412, a: 1}
+    TopColor: {r: 0.047058824, g: 0.039215688, b: 0.003921569, a: 0}
 --- !u!4 &1284825540
 Transform:
   m_ObjectHideFlags: 0

@@ -27,8 +27,8 @@ Shader "Roystan/Tessellation Example"
 			vertexOutput tessVertTransformed(vertexInput v)
 			{
 				vertexOutput o;
-				o.vertex = TransformObjectToHClip(v.vertex);
-				o.normal = v.normal;
+				o.vertexPos = TransformObjectToHClip(v.vertex);
+				o.normalOS = v.normalOS;
 				o.tangent = v.tangent;
 				return o;
 			}
@@ -44,7 +44,7 @@ Shader "Roystan/Tessellation Example"
 					patch[2].fieldName * barycentricCoordinates.z;
 
 				MY_DOMAIN_PROGRAM_INTERPOLATE(vertex)
-				MY_DOMAIN_PROGRAM_INTERPOLATE(normal)
+				MY_DOMAIN_PROGRAM_INTERPOLATE(normalOS)
 				MY_DOMAIN_PROGRAM_INTERPOLATE(tangent)
 
 				return tessVertTransformed(v);
