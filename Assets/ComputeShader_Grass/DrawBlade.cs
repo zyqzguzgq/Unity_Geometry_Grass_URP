@@ -23,7 +23,7 @@ public class DrawBlade : MonoBehaviour
     
     [SerializeField, Unity.Collections.ReadOnly]
     public int mBladeCount ;
-    [Range(0,2f)]
+    [Range(0,0.5f)]
     public float interval = 0.2f;
     [System.Serializable]
     public struct BladeDatas
@@ -37,8 +37,9 @@ public class DrawBlade : MonoBehaviour
         public float BendRotationRandom;
         
         public float BendDownFactor;
-        [Range(0f,1.5f)]
+        [Range(0f,10f)]
         public float Curve ;
+        [Range(0,3f)]
         public float BendStrength ;
         public Color BottomColor;
         public Color TopColor;

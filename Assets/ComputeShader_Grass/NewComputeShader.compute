@@ -137,7 +137,7 @@ void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex , uint3 thre
 	float3 rightVector = normalize(cross(UpVector , ForwardVector));
 	float3x3 facingRotationMatrix = float3x3(rightVector, UpVector,ForwardVector);*/
 
-	float3x3 facingRotationMatrix = AngleAxis3x3(rand(BladePosOffset) * UNITY_TWO_PI , float3(0, 1, 0));
+	float3x3 facingRotationMatrix = AngleAxis3x3(rand(BladePosOffset) * UNITY_TWO_PI*0.5  , float3(0, 1, 0));
 	float3x3 bendRotationMatrix = AngleAxis3x3(rand(BladePosOffset.zzx) * _BendRotationRandom * UNITY_PI * 0.5 , float3(1, 0, 0));
 	float3x3 windRotationMatrix = AngleAxis3x3(windStrength * _WindStrengthFactor , float3(windVector.x,0, windVector.y));
 	float3x3 transformMatrix = mul(mul(facingRotationMatrix,mul(bendRotationMatrix , scaleMatrix)),windRotationMatrix);
@@ -146,7 +146,7 @@ void UpdateBlade(uint3 gid : SV_GroupID, uint index : SV_GroupIndex , uint3 thre
 	for(int i =0; i<pointNum;i++)
 	{
 		int index = pindex * pointNum + i;
-		float3 posTemp = BladeInPosBuffer[i] + pow(BladeInPosBuffer[i].y , _Curve) * _BendStrength * BendVector;
+		float3 posTemp = BladeInPosBuffer[i] + pow(BladeInPosBuffer[i].y/BladeInPosBuffer[pointNum-1].y , _Curve) * _BendStrength*0.01 * BendVector;
 		
 		float3 positionOS = mul(transformMatrix,posTemp);
 		float3 positionWS = mul(_ObjectToWorld , float4(positionOS,1)).xyz + BladePosOffset + _ObjectPosition.xyz;
